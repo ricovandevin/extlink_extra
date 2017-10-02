@@ -14,15 +14,15 @@ function extlink_extra_page_attachments(array &$attachments) {
   $config = \Drupal::config('extlink_extra.settings');
 
   // Attach JavaScript scripts.
-  $page['#attached']['library'][] = 'extlink_extra/extlink_extra';
+  $attachments['#attached']['library'][] = 'extlink_extra/extlink_extra';
 
   // Attach JavaScript settings.
   $alert_type = $config->get('extlink_alert_type') ?: 'confirm';
   $alert_timer = $config->get('extlink_alert_timer') ?: 0;
-  $page['#attached']['drupalSettings']['extlink_extra'] = [
-      'extlink_alert_type' => $alert_type,
-      'extlink_alert_timer' => $alert_timer,
-    ];
+  $attachments['#attached']['drupalSettings']['extlink_extra'] = [
+    'extlink_alert_type' => $alert_type,
+    'extlink_alert_timer' => $alert_timer,
+  ];
 }
 
 /**
@@ -184,7 +184,7 @@ function extlink_extra_alert_default() {
  */
 function extlink_extra_token_info() {
   $types = [
-    'name' => t('External Links'), 
+    'name' => t('External Links'),
     'description' => t('Tokens related to the External Links module.'),
     'needs-data' => 'extlink',
   ];
@@ -198,7 +198,7 @@ function extlink_extra_token_info() {
     'name' => t('Back URL'),
     'description' => t('The URL of the page the user was on when they clicked the external link.'),
   ];
-  
+
   $extlinks['timer'] = [
     'name' => t('Timer'),
     'description' => t('Use this token to position the automatic redirect timer (if you are using it).'),
