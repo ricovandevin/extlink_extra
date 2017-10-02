@@ -45,18 +45,6 @@ function template_preprocess_extlink_extra_leaving(&$vars) {
 }
 
 /**
- * Page callback function for '/now-leaving'
- */
-function extlink_extra_leaving_page() {
-  $output = theme('extlink_extra_leaving');
-  if($_REQUEST['js']) {
-    print $output;
-    exit();
-  }
-  return $output;
-}
-
-/**
  * Implementation of hook_form_alter
  */
 function extlink_extra_form_alter(&$form, &$form_state, $form_id) {}
