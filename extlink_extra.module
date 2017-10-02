@@ -51,9 +51,6 @@ function extlink_extra_preprocess_extlink_extra_leaving(&$variables) {
   $eat_default = $config->get('extlink_alert_text') ?: ['value' => 'This link will take you to an external web site. We are not responsible for their content.', 'format' => NULL];
   $variables['alert_text'] = check_markup(token_replace($eat_default['value'], $extlink_token_data), $eat_default['format']);
 
-  $page_title = $config->get('extlink_page_title') ?: NULL;
-  $variables['page_title'] = token_replace($page_title, $extlink_token_data);
-  drupal_set_title($variables['page_title']);
   $variables['timer'] = extlink_extra_timer_markup();
 
   $config = \Drupal::config('system.site');

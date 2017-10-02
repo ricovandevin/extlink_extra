@@ -1,7 +1,7 @@
 extlink_extra.leaving:
   path: '/now-leaving'
   defaults:
-    _form: '\Drupal\extlink_extra\Controller\ExtlinkExtraController::leave'
-    _title: 'You are about to leave this site'
+    _controller: '\Drupal\extlink_extra\Controller\ExtlinkExtraController::leave'
+    _title_callback: '\Drupal\extlink_extra\Controller\ExtlinkExtraController::getTitle'
   requirements:
     _permission: 'access content'
