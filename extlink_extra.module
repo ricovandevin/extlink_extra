@@ -1,18 +1,24 @@
 <?php
+
+use Drupal\Core\Form\FormStateInterface;
+
 /**
  * Implementation of hook_init().
  */
 function extlink_extra_init() {
+  $config = \Drupal::config('extlink_extra.settings');
+
   $path = drupal_get_path('module', 'extlink_extra');
   drupal_add_js($path .'/extlink_extra.js');
-  
-  drupal_add_js(array(
-    'extlink_extra' => array(
-      'extlink_alert_type' => variable_get('extlink_alert_type', 'colorbox'),
-      'extlink_alert_timer' => variable_get('extlink_alert_timer', 0),
-      ),
-    ),'setting'
-  );
+
+  $alert_type = $config->get('extlink_alert_type') ?: 'confirm';
+  $alert_timer = $config->get('extlink_alert_timer') ?: 0;
+  drupal_add_js([
+      'extlink_extra' => [
+        'extlink_alert_type' => $alert_type,
+        'extlink_alert_timer' => $alert_timer,
+      ],
+    ], 'setting');
 }
 
 /**
@@ -28,84 +34,111 @@ function extlink_extra_theme() {
   );
 }
 
-function extlink_extra_preprocess_extlink_extra_leaving(&$vars) {
-  $eat_default = variable_get('extlink_alert_text', array('value' => 'This link will take you to an external web site. We are not responsible for their content.', 'format' => null));
-  $vars['external_url'] = $_COOKIE['external_url'];
-  $vars['back_url'] = $_COOKIE['back_url'];
-  $extlink_token_data = array (
-    'extlink' => array (
+/**
+ * Implements hook_preprocess_HOOK for extlink_extra_leaving.
+ */
+function extlink_extra_preprocess_extlink_extra_leaving(&$variables) {
+  $config = \Drupal::config('extlink_extra.settings');
+
+  $variables['external_url'] = $_COOKIE['external_url'];
+  $variables['back_url'] = $_COOKIE['back_url'];
+  $extlink_token_data = [
+    'extlink' => [
       'external_url' => $_COOKIE['external_url'],
       'back_url' => $_COOKIE['back_url'],
-    ),
-  );
-  $vars['alert_text'] = check_markup(token_replace($eat_default['value'],$extlink_token_data), $eat_default['format']);
-  $vars['page_title'] = token_replace(variable_get('extlink_page_title',null),$extlink_token_data);
-  drupal_set_title($vars['page_title']);
-  $vars['timer'] = extlink_extra_timer_markup();
+    ],
+  ];
+
+  $eat_default = $config->get('extlink_alert_text') ?: ['value' => 'This link will take you to an external web site. We are not responsible for their content.', 'format' => NULL];
+  $variables['alert_text'] = check_markup(token_replace($eat_default['value'], $extlink_token_data), $eat_default['format']);
+
+  $page_title = $config->get('extlink_page_title') ?: NULL;
+  $variables['page_title'] = token_replace($page_title, $extlink_token_data);
+  drupal_set_title($variables['page_title']);
+  $variables['timer'] = extlink_extra_timer_markup();
 
   $config = \Drupal::config('system.site');
-  $vars['site_name'] = $config->get('name') ?: '';
+  $variables['site_name'] = $config->get('name') ?: '';
 }
 
 /**
- * Implementation of hook_form_FORM_ID_alter
+ * Implements hook_form_FORM_ID_alter() for extlink_admin_settings.
  */
-function extlink_extra_form_extlink_admin_settings_alter(&$form, &$form_state) {
+function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterface $form_state, $form_id) {
+  $config = \Drupal::config('extlink_extra.settings');
+
   //Make a fieldset to put our new stuff in
-  $form['extlink_alert_text_fieldset'] = array (
-    '#type' => 'fieldset',
-    '#title' => 'Warning Text',
-    '#collapsible' => true,
-  );
+  $form['extlink_alert_text_fieldset'] = [
+    '#type' => 'details',
+    '#title' => $this->t('Warning Text'),
+  ];
   
-  $form['extlink_alert_text_fieldset']['extlink_page_title'] = array (
+  $form['extlink_alert_text_fieldset']['extlink_page_title'] = [
     '#type' => 'textfield',
-    '#title' => t('Warning Page Title'),
-    '#description' => t('If you are using an intermediate page to display the leaving alert, you can specify it\'s the page title here.  You may also use the tokens indicated below.'),
-    '#default_value' => variable_get('extlink_page_title',null),
-  );
+    '#title' => $this->t('Warning Page Title'),
+    '#description' => $this->t('If you are using an intermediate page to display the leaving alert, you can specify it\'s the page title here.  You may also use the tokens indicated below.'),
+    '#default_value' => $config->get('extlink_page_title') ?: NULL,
+  ];
   
-  $eat_default = variable_get('extlink_alert_text', array('value' => extlink_extra_alert_default(), 'format' => null));
+  $eat_default = $config->get('extlink_alert_text') ?: ['value' => extlink_extra_alert_default(), 'format' => NULL];
   $form['extlink_alert_text']['#type'] = 'text_format';
   $form['extlink_alert_text']['#default_value'] = $eat_default['value'];
   $form['extlink_alert_text']['#format'] = $eat_default['format'];
-  $form['extlink_alert_text']['tokens'] = array(
+  $form['extlink_alert_text']['tokens'] = [
     '#theme' => 'token_tree',
-    '#global_types' => true,
-    '#click_insert' => true,
+    '#global_types' => TRUE,
+    '#click_insert' => TRUE,
     '#weight' => 20,
-    '#token_types' => array('extlink'),
-  );
-  //Move the old alert text field into the fieldset
+    '#token_types' => ['extlink'],
+  ];
+
+  //Move the original alert text field into the fieldset.
   $form['extlink_alert_text_fieldset']['extlink_alert_text'] = $form['extlink_alert_text'];
-  
-  //Get rid of the old field since we moved it into the fieldset
   unset($form['extlink_alert_text']);
   
-  $form['extlink_alert'] = null;
-  $form['extlink_alert_type'] = array(
+  $form['extlink_alert'] = NULL;
+  $form['extlink_alert_type'] = [
     '#type' => 'select',
-    '#title' => t('External link click reaction'),
-    '#default_value' => variable_get('extlink_alert_type', 'colorbox'),
-    '#description' => t('Choose the way you would like external links to be handled.'),
-    '#options' => array (
-      'confirm' => t('A standard javascript confirm form will popup with the alert text'),
-      'page' => t('The user will be taken to an intermediate warning page which will display the alert text'),
-    ),
-  );
-  if(module_exists('colorbox')) {
-    $form['extlink_alert_type']['#options']['colorbox'] = t('A jQuery colorbox will be used for the alert (allows for HTML inside)');
+    '#title' => $this->t('External link click reaction'),
+    '#default_value' => $this->get('extlink_alert_type') ?: 'confirm',
+    '#description' => $this->t('Choose the way you would like external links to be handled.'),
+    '#options' => [
+      'confirm' => $this->t('A standard javascript confirm form will popup with the alert text'),
+      'page' => $this->t('The user will be taken to an intermediate warning page which will display the alert text'),
+    ],
+  ];
+  $moduleHandler = \Drupal::service('module_handler');
+  if($moduleHandler->moduleExists('colorbox')) {
+    $form['extlink_alert_type']['#options']['colorbox'] = $this->t('A jQuery colorbox will be used for the alert (allows for HTML inside)');
+    $form['extlink_alert_type']['#default_value'] = 'colorbox';
   }
   
   $form['extlink_alert_timer'] = array(
-    '#type' => 'textfield',
+    '#type' => 'number',
     '#title' => t('Use automatic redirect timer'),
-    '#default_value' => variable_get('extlink_alert_timer', 0),
+    '#default_value' => $config->get('extlink_alert_timer') ?: 0,
     '#description' => t('If you would like the colorbox popup (if enabled) to automatically redirect the user after clicking clicking an external link, choose the number of seconds on the timer before it will happen.  Enter 0 for no automatic redirection.  Using this feature will not allow the link to open in a new window.'),
   );
+
+  // Add a custom submit handler to save the settings in config.
+  $form['actions']['submit']['#submit'][] = 'extlink_extra_admin_settings_submit';
 }
 
-function extlink_extra_alert_default(){
+/**
+ * Additional submit handler for the extlink_admin_settings form.
+ */
+function extlink_extra_admin_settings_submit(&$form, FormStateInterface $form_state) {
+  $values = $form_state->getValues();
+
+  \Drupal::configFactory()->getEditable('extlink_extra.settings')
+    ->set('extlink_page_title', $values['extlink_page_title'])
+    ->set('extlink_alert_text', $values['extlink_alert_text'])
+    ->set('extlink_alert_type', $values['extlink_alert_type'])
+    ->set('extlink_alert_timer', $values['extlink_alert_timer'])
+    ->save();
+}
+
+function extlink_extra_alert_default() {
   $output = '
   <h2>You are leaving the  [site:name] website</h2>
   <p>You are being directed to a third-party website:</p>
@@ -120,6 +153,8 @@ function extlink_extra_alert_default(){
   <br/><br/>
   [extlink:timer]
   ';
+
+  return $output;
 }
 
 function extlink_extra_token_info() {
