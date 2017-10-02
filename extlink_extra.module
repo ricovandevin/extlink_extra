@@ -25,13 +25,12 @@ function extlink_extra_init() {
  * Implementation of hook_theme()
  */
 function extlink_extra_theme() {
-  return array(
-    'extlink_extra_leaving' => array(
-      'variables' => array(
-      ),
+  return [
+    'extlink_extra_leaving' => [
+      'variables' => [],
       'template' => 'extlink-extra-leaving',
-    ),
-  );
+    ],
+  ];
 }
 
 /**
@@ -113,12 +112,12 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
     $form['extlink_alert_type']['#default_value'] = 'colorbox';
   }
   
-  $form['extlink_alert_timer'] = array(
+  $form['extlink_alert_timer'] = [
     '#type' => 'number',
     '#title' => t('Use automatic redirect timer'),
     '#default_value' => $config->get('extlink_alert_timer') ?: 0,
     '#description' => t('If you would like the colorbox popup (if enabled) to automatically redirect the user after clicking clicking an external link, choose the number of seconds on the timer before it will happen.  Enter 0 for no automatic redirection.  Using this feature will not allow the link to open in a new window.'),
-  );
+  ];
 
   // Add a custom submit handler to save the settings in config.
   $form['actions']['submit']['#submit'][] = 'extlink_extra_admin_settings_submit';
@@ -158,33 +157,33 @@ function extlink_extra_alert_default() {
 }
 
 function extlink_extra_token_info() {
-  $types = array(
+  $types = [
     'name' => t('External Links'), 
     'description' => t('Tokens related to the external links module.'), 
     'needs-data' => 'extlink',
-  );
+  ];
 
-  $extlinks['external-url'] = array(
+  $extlinks['external-url'] = [
     'name' => t("External URL"), 
     'description' => t("The URL of the external site that the user has just clicked."),
-  );
-  $extlinks['back-url'] = array(
+  ];
+  $extlinks['back-url'] = [
     'name' => t("Back URL"), 
     'description' => t("The URL of the page the user was on when they clicked the external link"),
-  );
+  ];
   
-  $extlinks['timer'] = array(
+  $extlinks['timer'] = [
     'name' => t("Timer"), 
     'description' => t("Use this token to position the automatic redirect timer (if you are using it)."),
-  );
+  ];
 
-  return array(
-    'types' => array('extlink' => $types), 
-    'tokens' => array('extlink' => $extlinks),
-  );
+  return [
+    'types' => ['extlink' => $types],
+    'tokens' => ['extlink' => $extlinks],
+  ];
 }
 
-function extlink_extra_tokens($type, $tokens, array $data = array(), array $options = array()) {
+function extlink_extra_tokens($type, $tokens, array $data = [], array $options = []) {
   if($type == 'extlink') {
     foreach ($tokens as $name => $original) {
       switch ($name) {
