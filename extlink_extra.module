@@ -28,7 +28,7 @@ function extlink_extra_theme() {
   );
 }
 
-function template_preprocess_extlink_extra_leaving(&$vars) {
+function extlink_extra_preprocess_extlink_extra_leaving(&$vars) {
   $eat_default = variable_get('extlink_alert_text', array('value' => 'This link will take you to an external web site. We are not responsible for their content.', 'format' => null));
   $vars['external_url'] = $_COOKIE['external_url'];
   $vars['back_url'] = $_COOKIE['back_url'];
@@ -42,6 +42,9 @@ function template_preprocess_extlink_extra_leaving(&$vars) {
   $vars['page_title'] = token_replace(variable_get('extlink_page_title',null),$extlink_token_data);
   drupal_set_title($vars['page_title']);
   $vars['timer'] = extlink_extra_timer_markup();
+
+  $config = \Drupal::config('system.site');
+  $vars['site_name'] = $config->get('name') ?: '';
 }
 
 /**

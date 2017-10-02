@@ -4,17 +4,17 @@
 
    The following variables correspond to the tokens descibed on the External Link
    module's settings page:
-    - $back_url
-    - $external_url
-    - $timer
+    - back_url
+    - external_url
+    - timer
 
    The alert text itself (with token replacements applied, so omit them if you
    plan to deploy the tokens in the tpl)
-    - $alert_text
+    - alert_text
 
    The page title as entered on the External Links settings page (Drupal will set
    this on the now-leaving page, but you can access it here anyway)
-    - $page_title
+    - page_title
 
    Tip for themers: The javascript renders the automatic timer like this:
    <div class="automatic-redirect-countdown">
@@ -26,8 +26,6 @@
    Don't remove any CSS classes if you want them to function correctly, but add
    any that you need.
 #}
-
-$site_name = (theme_get_setting('toggle_name') ? filter_xss_admin(variable_get('site_name', 'Drupal')) : '');
 
 <div class="extlink-extra-leaving">
   <h2>You are leaving the {{ site_name }} website</h2>
