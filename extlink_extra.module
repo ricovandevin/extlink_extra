@@ -48,8 +48,9 @@ function extlink_extra_preprocess_extlink_extra_leaving(&$variables) {
     ],
   ];
 
+  $token = \Drupal::token();
   $eat_default = $config->get('extlink_alert_text') ?: ['value' => 'This link will take you to an external web site. We are not responsible for their content.', 'format' => NULL];
-  $variables['alert_text'] = check_markup(token_replace($eat_default['value'], $extlink_token_data), $eat_default['format']);
+  $variables['alert_text'] = check_markup($token->replace($eat_default['value'], $extlink_token_data), $eat_default['format']);
 
   $variables['timer'] = extlink_extra_timer_markup();
 
@@ -161,17 +162,17 @@ function extlink_extra_token_info() {
   ];
 
   $extlinks['external-url'] = [
-    'name' => t("External URL"), 
-    'description' => t("The URL of the external site that the user has just clicked."),
+    'name' => t('External URL'),
+    'description' => t('The URL of the external site that the user has just clicked.'),
   ];
   $extlinks['back-url'] = [
-    'name' => t("Back URL"), 
-    'description' => t("The URL of the page the user was on when they clicked the external link"),
+    'name' => t('Back URL'),
+    'description' => t('The URL of the page the user was on when they clicked the external link'),
   ];
   
   $extlinks['timer'] = [
-    'name' => t("Timer"), 
-    'description' => t("Use this token to position the automatic redirect timer (if you are using it)."),
+    'name' => t('Timer'),
+    'description' => t('Use this token to position the automatic redirect timer (if you are using it).'),
   ];
 
   return [
@@ -182,9 +183,10 @@ function extlink_extra_token_info() {
 
 function extlink_extra_tokens($type, $tokens, array $data = [], array $options = []) {
   if($type == 'extlink') {
+    $replacements = [];
+
     foreach ($tokens as $name => $original) {
       switch ($name) {
-        // Simple key values on the node.
         case 'external-url':
           $replacements[$original] = $data['extlink']['external_url'];
           break;
@@ -192,10 +194,14 @@ function extlink_extra_tokens($type, $tokens, array $data = [], array $options =
           $replacements[$original] = $data['extlink']['back_url'];
           break;
         case 'timer':
-          $replacements[$original] = extlink_extra_timer_markup();
+          /** @var \Drupal\Core\Render\RendererInterface $renderer */
+          $renderer = \Drupal::service('renderer');
+          $timer_markup = extlink_extra_timer_markup();
+          $replacements[$original] = $renderer->render($timer_markup);
           break;
       }
     }
+
     return $replacements;
   }
 }

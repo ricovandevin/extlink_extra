@@ -4,6 +4,7 @@ namespace Drupal\extlink_extra\Controller;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Utility\Token;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class ExtlinkExtraController extends ControllerBase {
@@ -16,10 +17,18 @@ class ExtlinkExtraController extends ControllerBase {
   protected $configFactory;
 
   /**
+   * The token service.
+   *
+   * @var \Drupal\Core\Utility\Token
+   */
+  protected $token;
+
+  /**
    * {@inheritdoc}
    */
-  public function __construct(ConfigFactoryInterface $config_factory) {
+  public function __construct(ConfigFactoryInterface $config_factory, Token $token) {
     $this->configFactory = $config_factory;
+    $this->token = $token;
   }
 
   /**
@@ -27,7 +36,8 @@ class ExtlinkExtraController extends ControllerBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('config.factory')
+      $container->get('config.factory'),
+      $container->get('token')
     );
   }
 
@@ -47,7 +57,7 @@ class ExtlinkExtraController extends ControllerBase {
 
     $page_title = $config->get('extlink_page_title') ?: NULL;
 
-    return token_replace($page_title, $extlink_token_data);
+    return $this->token->replace($page_title, $extlink_token_data);
   }
 
   /**
