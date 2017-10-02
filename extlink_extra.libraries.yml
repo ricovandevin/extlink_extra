@@ -1,0 +1,8 @@
+extlink_extra:
+  js:
+    js/extlink_extra.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupalSettings
+    - core/jquery.once
