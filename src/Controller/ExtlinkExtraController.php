@@ -47,7 +47,10 @@ class ExtlinkExtraController extends ControllerBase {
    * @return string
    */
   public function getTitle() {
+    // Get configuration.
     $config = $this->configFactory->get('extlink_extra.settings');
+
+    // Prepare token replacement values.
     $extlink_token_data = [
       'extlink' => [
         'external_url' => $_COOKIE['external_url'],
@@ -55,17 +58,21 @@ class ExtlinkExtraController extends ControllerBase {
       ],
     ];
 
+    // Fetch the page title and return it after replacing the tokens.
     $page_title = $config->get('extlink_page_title') ?: NULL;
-
     return $this->token->replace($page_title, $extlink_token_data);
   }
 
   /**
    * Render the markup for the exit modal.
    *
+   * @see extlink_extra_preprocess_extlink_extra_leaving()
+   *
    * @return array
    */
   public function leave() {
+    // Just return the template. Variables will be inserted
+    // in extlink_extra_preprocess_extlink_extra_leaving().
     return [
       '#theme' => 'extlink_extra_leaving',
     ];

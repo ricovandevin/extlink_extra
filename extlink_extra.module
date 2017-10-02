@@ -1,15 +1,22 @@
 <?php
 
+/**
+ * Hook implementations for External Links Extra.
+ */
+
 use Drupal\Core\Form\FormStateInterface;
 
 /**
  * Implements hook_page_attachments().
  */
 function extlink_extra_page_attachments(array &$attachments) {
+  // Get configuration.
   $config = \Drupal::config('extlink_extra.settings');
 
+  // Attach JavaScript scripts.
   $page['#attached']['library'][] = 'extlink_extra/extlink_extra';
 
+  // Attach JavaScript settings.
   $alert_type = $config->get('extlink_alert_type') ?: 'confirm';
   $alert_timer = $config->get('extlink_alert_timer') ?: 0;
   $page['#attached']['drupalSettings']['extlink_extra'] = [
@@ -32,10 +39,14 @@ function extlink_extra_theme() {
 
 /**
  * Implements hook_preprocess_HOOK for extlink_extra_leaving.
+ *
+ * Adds variables for the template.
  */
 function extlink_extra_preprocess_extlink_extra_leaving(&$variables) {
+  // Get configuration.
   $config = \Drupal::config('extlink_extra.settings');
 
+  // Prepare token replacement values.
   $variables['external_url'] = $_COOKIE['external_url'];
   $variables['back_url'] = $_COOKIE['back_url'];
   $extlink_token_data = [
@@ -45,12 +56,15 @@ function extlink_extra_preprocess_extlink_extra_leaving(&$variables) {
     ],
   ];
 
+  // Fetch the alert text and replace tokens.
   $token = \Drupal::token();
   $eat_default = $config->get('extlink_alert_text') ?: ['value' => 'This link will take you to an external web site. We are not responsible for their content.', 'format' => NULL];
   $variables['alert_text'] = check_markup($token->replace($eat_default['value'], $extlink_token_data), $eat_default['format']);
 
+  // Fetch the timer markup.
   $variables['timer'] = extlink_extra_timer_markup();
 
+  // Fetch the site name.
   $config = \Drupal::config('system.site');
   $variables['site_name'] = $config->get('name') ?: '';
 }
@@ -59,21 +73,24 @@ function extlink_extra_preprocess_extlink_extra_leaving(&$variables) {
  * Implements hook_form_FORM_ID_alter() for extlink_admin_settings.
  */
 function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterface $form_state, $form_id) {
+  // Get configuration.
   $config = \Drupal::config('extlink_extra.settings');
 
-  //Make a fieldset to put our new stuff in
+  // Add a collapsible wrapper.
   $form['extlink_alert_text_fieldset'] = [
     '#type' => 'details',
     '#title' => t('Warning Text'),
   ];
-  
+
+  // Add a textfield for the page title.
   $form['extlink_alert_text_fieldset']['extlink_page_title'] = [
     '#type' => 'textfield',
     '#title' => t('Warning Page Title'),
     '#description' => t('If you are using an intermediate page to display the leaving alert, you can specify it\'s the page title here.  You may also use the tokens indicated below.'),
     '#default_value' => $config->get('extlink_page_title') ?: NULL,
   ];
-  
+
+  // Convert the field for the text to a formatted text field with token support.
   $eat_default = $config->get('extlink_alert_text') ?: ['value' => extlink_extra_alert_default(), 'format' => NULL];
   $form['extlink_alert_text']['#type'] = 'text_format';
   $form['extlink_alert_text']['#default_value'] = $eat_default['value'];
@@ -86,11 +103,15 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
     '#token_types' => ['extlink'],
   ];
 
-  //Move the original alert text field into the fieldset.
+  // Move the original alert text textfield into the wrapper.
   $form['extlink_alert_text_fieldset']['extlink_alert_text'] = $form['extlink_alert_text'];
   unset($form['extlink_alert_text']);
-  
+
+  // Remove the checkbox to enable the alert since using this module implies
+  // that this checkbox will be checked anyway.
   $form['extlink_alert'] = NULL;
+
+  // Add a select field for the type of alert.
   $form['extlink_alert_type'] = [
     '#type' => 'select',
     '#title' => t('External link click reaction'),
@@ -101,12 +122,14 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
       'page' => t('The user will be taken to an intermediate warning page which will display the alert text'),
     ],
   ];
+  // Add an extra option when the Colorbox module is enabled.
   $moduleHandler = \Drupal::service('module_handler');
   if($moduleHandler->moduleExists('colorbox')) {
     $form['extlink_alert_type']['#options']['colorbox'] = t('A jQuery colorbox will be used for the alert (allows for HTML inside)');
     $form['extlink_alert_type']['#default_value'] = 'colorbox';
   }
-  
+
+  // Add a number field for setting the interval for the redirect timer.
   $form['extlink_alert_timer'] = [
     '#type' => 'number',
     '#title' => t('Use automatic redirect timer'),
@@ -122,8 +145,10 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
  * Additional submit handler for the extlink_admin_settings form.
  */
 function extlink_extra_admin_settings_submit(&$form, FormStateInterface $form_state) {
+  // Fetch the submitted values.
   $values = $form_state->getValues();
 
+  // Store the values related to this module in config.
   \Drupal::configFactory()->getEditable('extlink_extra.settings')
     ->set('extlink_page_title', $values['extlink_page_title'])
     ->set('extlink_alert_text', $values['extlink_alert_text'])
@@ -132,29 +157,35 @@ function extlink_extra_admin_settings_submit(&$form, FormStateInterface $form_st
     ->save();
 }
 
+/**
+ * Returns the default value for the extlink_alert_text setting.
+ *
+ * @return string
+ */
 function extlink_extra_alert_default() {
-  $output = '
-  <h2>You are leaving the  [site:name] website</h2>
-  <p>You are being directed to a third-party website:</p>
-  <p><strong>[extlink:external-url]</strong></p>
-  <p>This link is provided for your convenience. Please note that this third-party website is not controlled by [site:name] or subject to our privacy policy.</p>
-  <p>Thank you for visiting our site. We hope your visit was informative and enjoyable.</p>
-  
-  <div class="extlink-extra-actions">
-      <div class="extlink-extra-back-action"><a title="Cancel" href="[extlink:back-url]">Cancel</a></div>
-      <div class="extlink-extra-go-action"><a class="ext-override" title="Go to link" href="[extlink:external-url]">Go to link</a></div>
-  </div>
-  <br/><br/>
-  [extlink:timer]
-  ';
+  $output = '<h2>You are leaving the  [site:name] website</h2>
+    <p>You are being directed to a third-party website:</p>
+    <p><strong>[extlink:external-url]</strong></p>
+    <p>This link is provided for your convenience. Please note that this third-party website is not controlled by [site:name] or subject to our privacy policy.</p>
+    <p>Thank you for visiting our site. We hope your visit was informative and enjoyable.</p>
+    
+    <div class="extlink-extra-actions">
+        <div class="extlink-extra-back-action"><a title="Cancel" href="[extlink:back-url]">Cancel</a></div>
+        <div class="extlink-extra-go-action"><a class="ext-override" title="Go to link" href="[extlink:external-url]">Go to link</a></div>
+    </div>
+    <br/><br/>
+    [extlink:timer]';
 
   return $output;
 }
 
+/**
+ * Implements hook_token_info().
+ */
 function extlink_extra_token_info() {
   $types = [
     'name' => t('External Links'), 
-    'description' => t('Tokens related to the external links module.'), 
+    'description' => t('Tokens related to the External Links module.'),
     'needs-data' => 'extlink',
   ];
 
@@ -162,9 +193,10 @@ function extlink_extra_token_info() {
     'name' => t('External URL'),
     'description' => t('The URL of the external site that the user has just clicked.'),
   ];
+
   $extlinks['back-url'] = [
     'name' => t('Back URL'),
-    'description' => t('The URL of the page the user was on when they clicked the external link'),
+    'description' => t('The URL of the page the user was on when they clicked the external link.'),
   ];
   
   $extlinks['timer'] = [
@@ -178,6 +210,9 @@ function extlink_extra_token_info() {
   ];
 }
 
+/**
+ * Implements hook_tokens().
+ */
 function extlink_extra_tokens($type, $tokens, array $data = [], array $options = []) {
   if($type == 'extlink') {
     $replacements = [];
