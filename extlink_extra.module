@@ -69,13 +69,13 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
   //Make a fieldset to put our new stuff in
   $form['extlink_alert_text_fieldset'] = [
     '#type' => 'details',
-    '#title' => $this->t('Warning Text'),
+    '#title' => t('Warning Text'),
   ];
   
   $form['extlink_alert_text_fieldset']['extlink_page_title'] = [
     '#type' => 'textfield',
-    '#title' => $this->t('Warning Page Title'),
-    '#description' => $this->t('If you are using an intermediate page to display the leaving alert, you can specify it\'s the page title here.  You may also use the tokens indicated below.'),
+    '#title' => t('Warning Page Title'),
+    '#description' => t('If you are using an intermediate page to display the leaving alert, you can specify it\'s the page title here.  You may also use the tokens indicated below.'),
     '#default_value' => $config->get('extlink_page_title') ?: NULL,
   ];
   
@@ -98,17 +98,17 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
   $form['extlink_alert'] = NULL;
   $form['extlink_alert_type'] = [
     '#type' => 'select',
-    '#title' => $this->t('External link click reaction'),
+    '#title' => t('External link click reaction'),
     '#default_value' => $this->get('extlink_alert_type') ?: 'confirm',
-    '#description' => $this->t('Choose the way you would like external links to be handled.'),
+    '#description' => t('Choose the way you would like external links to be handled.'),
     '#options' => [
-      'confirm' => $this->t('A standard javascript confirm form will popup with the alert text'),
-      'page' => $this->t('The user will be taken to an intermediate warning page which will display the alert text'),
+      'confirm' => t('A standard javascript confirm form will popup with the alert text'),
+      'page' => t('The user will be taken to an intermediate warning page which will display the alert text'),
     ],
   ];
   $moduleHandler = \Drupal::service('module_handler');
   if($moduleHandler->moduleExists('colorbox')) {
-    $form['extlink_alert_type']['#options']['colorbox'] = $this->t('A jQuery colorbox will be used for the alert (allows for HTML inside)');
+    $form['extlink_alert_type']['#options']['colorbox'] = t('A jQuery colorbox will be used for the alert (allows for HTML inside)');
     $form['extlink_alert_type']['#default_value'] = 'colorbox';
   }
   
