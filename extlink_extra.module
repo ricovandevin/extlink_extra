@@ -126,7 +126,7 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
   $moduleHandler = \Drupal::service('module_handler');
   if($moduleHandler->moduleExists('colorbox')) {
     $form['extlink_alert_type']['#options']['colorbox'] = t('A jQuery colorbox will be used for the alert (allows for HTML inside)');
-    $form['extlink_alert_type']['#default_value'] = 'colorbox';
+    $form['extlink_alert_type']['#default_value'] = $config->get('extlink_alert_type') ?: 'colorbox';
   }
 
   // Add a number field for setting the interval for the redirect timer.
