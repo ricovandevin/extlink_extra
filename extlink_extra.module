@@ -115,7 +115,7 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
   $form['extlink_alert_type'] = [
     '#type' => 'select',
     '#title' => t('External link click reaction'),
-    '#default_value' => $this->get('extlink_alert_type') ?: 'confirm',
+    '#default_value' => $config->get('extlink_alert_type') ?: 'confirm',
     '#description' => t('Choose the way you would like external links to be handled.'),
     '#options' => [
       'confirm' => t('A standard javascript confirm form will popup with the alert text'),
