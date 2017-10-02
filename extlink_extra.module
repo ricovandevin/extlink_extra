@@ -200,7 +200,10 @@ function extlink_extra_tokens($type, $tokens, array $data = [], array $options =
   }
 }
 
-//Returns the markup that the automatic timer uses to attach itself to
+// Returns the markup that the automatic timer uses to attach itself to.
 function extlink_extra_timer_markup() {
-  return '<div class="automatic-redirect-countdown"></div>';
+  return [
+      '#type' => 'inline_template',
+      '#template' => '<div class="automatic-redirect-countdown"></div>',
+    ];
 }
