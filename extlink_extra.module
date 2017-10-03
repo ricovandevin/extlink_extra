@@ -138,7 +138,7 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
   ];
 
   // Add a custom submit handler to save the settings in config.
-  $form['actions']['submit']['#submit'][] = 'extlink_extra_admin_settings_submit';
+  $form['#submit'][] = 'extlink_extra_admin_settings_submit';
 }
 
 /**
