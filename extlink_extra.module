@@ -4,7 +4,12 @@
  * Hook implementations for External Links Extra.
  */
 
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
+
+// The default space is intentional so there is a space when CSS is off.
+define('EXTLINK_EXTRA_508_TEXT', ' [external link]');
 
 /**
  * Implements hook_config_schema_info_alter().
@@ -24,13 +29,48 @@ function extlink_extra_page_attachments(array &$attachments) {
   // Attach JavaScript scripts.
   $attachments['#attached']['library'][] = 'extlink_extra/extlink_extra';
 
-  // Attach JavaScript settings.
+  // If we are using Colorbox we will add js=1 to the query string of the alert
+  // page. This causes a premature exit which saves execution time and does not
+  // render the rest of the page.
   $alert_type = $config->get('extlink_alert_type') ?: 'confirm';
-  $alert_timer = $config->get('extlink_alert_timer') ?: 0;
+  $query = [];
+  if ($alert_type == 'colorbox') {
+    $query = ['js' => 1];
+  }
+
+  // Get URL params if they exist.
+  $url_params = [];
+  $request = \Drupal::request();
+  $external_url = $request->request->get('external_url');
+  if ($external_url && UrlHelper::isValid($external_url, TRUE)) {
+    $url_params['external_url'] = UrlHelper::stripDangerousProtocols($external_url);
+  }
+  $back_url = $request->request->get('back_url');
+  if ($back_url && UrlHelper::isValid($back_url, TRUE)) {
+    $url_params['back_url'] = UrlHelper::stripDangerousProtocols($back_url);
+  }
+
+  // Attach JavaScript settings.
+  $alert_url = Url::fromRoute('extlink_extra.leaving')
+    ->setOption('query', $query)
+    ->setAbsolute();
   $attachments['#attached']['drupalSettings']['extlink_extra'] = [
-    'extlink_alert_type' => $alert_type,
-    'extlink_alert_timer' => $alert_timer,
-  ];
+      'extlink_alert_type' => $alert_type,
+      'extlink_alert_timer' => $config->get('extlink_alert_timer') ?: 0,
+      'extlink_alert_url' => $alert_url->toString(),
+      'extlink_cache_fix' => $config->get('extlink_cache_fix') ?: 0,
+      'extlink_exclude_warning' => $config->get('extlink_exclude_warning') ?: '',
+      'extlink_508_fix' => $config->get('extlink_508_fix') ?: 0,
+      'extlink_508_text' => $config->get('extlink_508_text') ?: EXTLINK_EXTRA_508_TEXT,
+      'extlink_url_override' => $config->get('extlink_url_override') ?: 0,
+      'extlink_url_params' => $url_params,
+    ];
+
+  // Add an extra CSS file if our 508 fix option is on.
+  $extlink_508_fix = $config->get('extlink_508_fix') ?: 0;
+  if ($extlink_508_fix) {
+    $attachments['#attached']['library'][] = 'extlink_extra/extlink_508';
+  }
 }
 
 /**
@@ -55,19 +95,26 @@ function extlink_extra_preprocess_extlink_extra_leaving(&$variables) {
   $config = \Drupal::config('extlink_extra.settings');
 
   // Prepare token replacement values.
-  $variables['external_url'] = $_COOKIE['external_url'];
-  $variables['back_url'] = $_COOKIE['back_url'];
+  $cache_fix = $config->get('extlink_cache_fix') ?: 0;
+  $external_url = $cache_fix ? 'external-url-placeholder' : $_COOKIE['external_url'];
+  $variables['external_url'] = Url::fromUserInput($external_url)->setAbsolute()->toString();
+  $back_url = $cache_fix ? 'back-url-placeholder' : $_COOKIE['back_url'];
+  $variables['back_url'] = Url::fromUserInput($back_url)->setAbsolute()->toString();
   $extlink_token_data = [
     'extlink' => [
-      'external_url' => $_COOKIE['external_url'],
-      'back_url' => $_COOKIE['back_url'],
+      'external_url' => $variables['external_url'],
+      'back_url' => $variables['back_url'],
     ],
   ];
 
   // Fetch the alert text and replace tokens.
   $token = \Drupal::token();
-  $eat_default = $config->get('extlink_alert_text') ?: ['value' => 'This link will take you to an external web site. We are not responsible for their content.', 'format' => NULL];
-  $variables['alert_text'] = check_markup($token->replace($eat_default['value'], $extlink_token_data), $eat_default['format']);
+  $eat_default = [
+    'value' => 'This link will take you to an external web site. We are not responsible for their content.',
+    'format' => filter_default_format(),
+  ];
+  $alert_text = $config->get('extlink_alert_text') ?: $eat_default;
+  $variables['alert_text'] = check_markup($token->replace($alert_text['value'], $extlink_token_data), $alert_text['format']);
 
   // Fetch the timer markup.
   $variables['timer'] = extlink_extra_timer_markup();
@@ -84,10 +131,36 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
   // Get configuration.
   $config = \Drupal::config('extlink_extra.settings');
 
+  // Add a select field for the type of alert.
+  $form['extlink_alert_type'] = [
+    '#type' => 'select',
+    '#title' => t('External link click reaction'),
+    '#default_value' => $config->get('extlink_alert_type') ?: 'confirm',
+    '#description' => t('Choose the way you would like external links to be handled.'),
+    '#options' => [
+      'confirm' => t('A standard javascript confirm form will popup with the alert text'),
+      'page' => t('The user will be taken to an intermediate warning page which will display the alert text'),
+    ],
+  ];
+  // Add an extra option when the Colorbox module is enabled.
+  $moduleHandler = \Drupal::service('module_handler');
+  if($moduleHandler->moduleExists('colorbox')) {
+    $form['extlink_alert_type']['#options']['colorbox'] = t('A jQuery colorbox will be used for the alert (allows for HTML inside)');
+    $form['extlink_alert_type']['#default_value'] = $config->get('extlink_alert_type') ?: 'colorbox';
+  }
+
   // Add a collapsible wrapper.
   $form['extlink_alert_text_fieldset'] = [
     '#type' => 'details',
     '#title' => t('Warning Text'),
+    '#open' => TRUE,
+    '#states' => [
+      'invisible' => [
+        ':input[name=extlink_alert_type]' => [
+          'value' => '',
+        ],
+      ],
+    ],
   ];
 
   // Add a textfield for the page title.
@@ -96,14 +169,23 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
     '#title' => t('Warning Page Title'),
     '#description' => t('If you are using an intermediate page to display the leaving alert, you can specify it\'s the page title here.  You may also use the tokens indicated below.'),
     '#default_value' => $config->get('extlink_page_title') ?: NULL,
+    '#states' => [
+      'visible' => [
+        ':input[name=extlink_alert_type]' => [
+          'value' => 'page',
+        ],
+      ],
+    ],
   ];
 
   // Convert the field for the text to a formatted text field with token support.
-  $eat_default = $config->get('extlink_alert_text') ?: ['value' => extlink_extra_alert_default(), 'format' => NULL];
+  $eat_default = ['value' => extlink_extra_alert_default(), 'format' => filter_default_format()];
+  $alert_text = $config->get('extlink_alert_text') ?: $eat_default;
   $form['extlink_alert_text']['#type'] = 'text_format';
-  $form['extlink_alert_text']['#default_value'] = $eat_default['value'];
-  $form['extlink_alert_text']['#format'] = $eat_default['format'];
-  $form['extlink_alert_text']['tokens'] = [
+  $form['extlink_alert_text']['#default_value'] = $alert_text['value'];
+  $form['extlink_alert_text']['#format'] = $alert_text['format'];
+
+  $form['extlink_alert_text_fieldset']['token_help'] = [
     '#theme' => 'token_tree',
     '#global_types' => TRUE,
     '#click_insert' => TRUE,
@@ -115,9 +197,8 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
   $form['extlink_alert_text_fieldset']['extlink_alert_text'] = $form['extlink_alert_text'];
   unset($form['extlink_alert_text']);
 
-  // Remove the checkbox to enable the alert since using this module implies
-  // that this checkbox will be checked anyway.
-  $form['extlink_alert'] = NULL;
+  // Remove the 'Display pop-up warnings' checkbox that extlink.module provides.
+  $form['extlink_alert']['#access'] = FALSE;
 
   // Add a select field for the type of alert.
   $form['extlink_alert_type'] = [
@@ -145,6 +226,61 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
     '#description' => t('If you would like the colorbox popup (if enabled) to automatically redirect the user after clicking clicking an external link, choose the number of seconds on the timer before it will happen.  Enter 0 for no automatic redirection.  Using this feature will not allow the link to open in a new window.'),
   ];
 
+  // Handle caching.
+  $form['extlink_cache_fix'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Enable aggressive caching compatibility'),
+    '#description' => t('If you\'re running an aggressive caching system like varnish or memcached, you may find that the \'now-leaving\' page or colorbox popup gets cached
+       and shows the same redirect tokens for all users.  Enabling this option will cause the module to overcome this by using client side (javascript) code to dynamically
+       replace the values when the page is loaded.  <br/>
+       <span class="error">Note</span> that this depends on your links being wrapped in the default classes: extlink-extra-back-action and extlink-extra-go-action.
+       See extlink-extra-leaving.html.example.twig for an example.'),
+    '#default_value' => $config->get('extlink_cache_fix') ?: 0,
+  ];
+
+  // Handle accessibility.
+  $form['extlink_508'] = [
+    '#type' => 'details',
+    '#title' => t('Section 508 Accessibility'),
+    '#open' => FALSE,
+  ];
+  $form['extlink_508']['extlink_508_fix'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Section 508 improvement for link indicators'),
+    '#description' => t('Improves usability for screen readers by adding offscreen text to the span tags created by the External Link module.'),
+    '#default_value' => $config->get('extlink_508_fix') ?: 0,
+  ];
+  $form['extlink_508']['extlink_508_text'] = [
+    '#type' => 'textfield',
+    '#title' => t('Section 508 text'),
+    '#description' => t('Screenreader text used when 508 fix is applied'),
+    '#default_value' => $config->get('extlink_508_text') ?: EXTLINK_EXTRA_508_TEXT,
+    '#states' => [
+      'invisible' => [
+        ':input[name=extlink_508_fix]' => ['checked' => FALSE],
+      ],
+    ],
+  ];
+
+  // Override options.
+  $form['extlink_url_override'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Allow query string parameters to set destination and back links'),
+    '#description' => t('If you have advertisements and require a bumper for leaving the site, some advertisers use url parameters to set the destination.
+     Select this checkbox to allow url parameters to set the destination and back links. Links must be prepended with http://.<br/> 
+     Eg. example.com/now-leaving?external_url=http://newurl.com&back_url=http://example.com/old-path.'),
+    '#default_value' => $config->get('extlink_url_override') ?: 0,
+  ];
+
+  // Add exclude option for alerts.
+  $form['patterns']['#weight'] = 1;
+  $form['patterns']['extlink_exclude_warning'] = array(
+    '#title' => t('Don\'t warn for links matching the pattern'),
+    '#description' => t('Enter a regular expression for external links that you wish <strong>not</strong> to display a warning when clicked'),
+    '#type' => 'textfield',
+    '#default_value' => $config->get('extlink_exclude_warning') ?: '',
+  );
+
   // Add a custom submit handler to save the settings in config.
   $form['#submit'][] = 'extlink_extra_admin_settings_submit';
 }
@@ -162,6 +298,11 @@ function extlink_extra_admin_settings_submit(&$form, FormStateInterface $form_st
     ->set('extlink_alert_text', $values['extlink_alert_text'])
     ->set('extlink_alert_type', $values['extlink_alert_type'])
     ->set('extlink_alert_timer', $values['extlink_alert_timer'])
+    ->set('extlink_cache_fix', $values['extlink_cache_fix'])
+    ->set('extlink_508_fix', $values['extlink_508_fix'])
+    ->set('extlink_508_text', $values['extlink_508_text'])
+    ->set('extlink_url_override', $values['extlink_url_override'])
+    ->set('extlink_exclude_warning', $values['extlink_exclude_warning'])
     ->save();
 }
 
@@ -192,7 +333,7 @@ function extlink_extra_alert_default() {
  */
 function extlink_extra_token_info() {
   $types = [
-    'name' => t('External Links'),
+    'name' => t('External Links'), 
     'description' => t('Tokens related to the External Links module.'),
     'needs-data' => 'extlink',
   ];
@@ -206,7 +347,7 @@ function extlink_extra_token_info() {
     'name' => t('Back URL'),
     'description' => t('The URL of the page the user was on when they clicked the external link.'),
   ];
-
+  
   $extlinks['timer'] = [
     'name' => t('Timer'),
     'description' => t('Use this token to position the automatic redirect timer (if you are using it).'),
@@ -249,7 +390,7 @@ function extlink_extra_tokens($type, $tokens, array $data = [], array $options =
 // Returns the markup that the automatic timer uses to attach itself to.
 function extlink_extra_timer_markup() {
   return [
-    '#type' => 'inline_template',
-    '#template' => '<div class="automatic-redirect-countdown"></div>',
-  ];
+      '#type' => 'inline_template',
+      '#template' => '<div class="automatic-redirect-countdown"></div>',
+    ];
 }

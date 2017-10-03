@@ -6,3 +6,8 @@ extlink_extra:
     - core/drupal
     - core/drupalSettings
     - core/jquery.once
+    - core/jquery.cookie
+
+extlink_508:
+  css:
+    css/extlink_extra.508.css
