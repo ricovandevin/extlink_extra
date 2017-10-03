@@ -7,6 +7,14 @@
 use Drupal\Core\Form\FormStateInterface;
 
 /**
+ * Implements hook_config_schema_info_alter().
+ */
+function extlink_extra_config_schema_info_alter(&$definitions) {
+  // Make sure we can store formatted text for the alert.
+  $definitions['extlink.settings']['mapping']['extlink_alert_text']['type'] = 'text_format';
+}
+
+/**
  * Implements hook_page_attachments().
  */
 function extlink_extra_page_attachments(array &$attachments) {
