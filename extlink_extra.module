@@ -97,9 +97,9 @@ function extlink_extra_preprocess_extlink_extra_leaving(&$variables) {
   // Prepare token replacement values.
   $cache_fix = $config->get('extlink_cache_fix') ?: 0;
   $external_url = $cache_fix ? 'external-url-placeholder' : $_COOKIE['external_url'];
-  $variables['external_url'] = Url::fromUserInput($external_url)->setAbsolute()->toString();
+  $variables['external_url'] = Url::fromUri($external_url)->setAbsolute()->toString();
   $back_url = $cache_fix ? 'back-url-placeholder' : $_COOKIE['back_url'];
-  $variables['back_url'] = Url::fromUserInput($back_url)->setAbsolute()->toString();
+  $variables['back_url'] = Url::fromUri($back_url)->setAbsolute()->toString();
   $extlink_token_data = [
     'extlink' => [
       'external_url' => $variables['external_url'],
