@@ -185,8 +185,8 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
   $form['extlink_alert_text']['#default_value'] = $alert_text['value'];
   $form['extlink_alert_text']['#format'] = $alert_text['format'];
 
-  $form['extlink_alert_text_fieldset']['token_help'] = [
-    '#theme' => 'token_tree',
+  $form['extlink_alert_text_fieldset']['token_tree'] = [
+    '#theme' => 'token_tree_link',
     '#global_types' => TRUE,
     '#click_insert' => TRUE,
     '#weight' => 20,
