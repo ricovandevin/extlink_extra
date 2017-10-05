@@ -71,6 +71,12 @@ function extlink_extra_page_attachments(array &$attachments) {
   if ($extlink_508_fix) {
     $attachments['#attached']['library'][] = 'extlink_extra/extlink_508';
   }
+
+  // Add colorbox library if applicable.
+  $moduleHandler = \Drupal::service('module_handler');
+  if($alert_type == 'colorbox' && $moduleHandler->moduleExists('colorbox')) {
+    $attachments['#attached']['library'][] = 'colorbox/colorbox';
+  }
 }
 
 /**
