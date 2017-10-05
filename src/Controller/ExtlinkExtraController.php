@@ -2,6 +2,7 @@
 
 namespace Drupal\extlink_extra\Controller;
 
+use Drupal\Core\Cache\CacheableResponseInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Render\HtmlResponse;
@@ -98,7 +99,10 @@ class ExtlinkExtraController extends ControllerBase {
       '#theme' => 'extlink_extra_leaving',
     ];
 
-    if ($this->requestStack->getCurrentRequest()->request->get('js')) {
+    // If we are using Colorbox we will add colorbox=1 to the query string of the
+    // alert page. This causes a premature exit which saves execution time and
+    // does not render the rest of the page.
+    if ($this->requestStack->getCurrentRequest()->request->get('colorbox')) {
       $html = $this->renderer->render($output);
       return new HtmlResponse($html);
     }

@@ -177,7 +177,33 @@
             // Unbind the click handlers added by extlink and replace with our own
             // This whole section of code that does the finding, unbinding, and rebinding
             // could be made a lot less redundant and more efficient if this issue could be resolved: http://drupal.org/node/1715520
-            $(external_links).unbind('click').not('.ext-override, .extlink-extra-leaving a').click(this.clickReaction);
+            $(external_links).unbind('click');
+            if (drupalSettings.extlink_extra.extlink_alert_type == 'modal') {
+                var backUrl = window.location.href;
+                var alertUrl = drupalSettings.extlink_extra.extlink_alert_url;
+
+                // Replace all external links with a Modal Dialog link.
+                $(external_links).each(function () {
+                    if (!isInExtraLeavingContainer(this)) {
+                        var externalUrl = $(this).attr('href');
+                        var href = alertUrl + '?external_url=' + externalUrl + '&back_url=' + backUrl;
+
+                        $(this).attr('href', href);
+                        $(this).addClass('use-ajax');
+                        $(this).attr('data-dialog-type', 'modal');
+
+                        // Set the modal width if supplied.
+                        var modalWidth = drupalSettings.extlink_extra.extlink_modal_width;
+                        if (modalWidth) {
+                            $(this).attr('data-dialog-options', '{"width":"' + modalWidth + '"}');
+                        }
+                    }
+                });
+            }
+            else {
+                // Add our own click handler.
+                $(external_links).not('.ext-override, .extlink-extra-leaving a').click(this.clickReaction);
+            }
 
             $(document).ready(function() {
                 if (drupalSettings.extlink_extra.extlink_url_override == 1) {

@@ -10,4 +10,5 @@ extlink_extra:
 
 extlink_508:
   css:
-    css/extlink_extra.508.css
+    component:
+      css/extlink_extra.508.css: {}

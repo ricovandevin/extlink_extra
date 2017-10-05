@@ -29,13 +29,13 @@ function extlink_extra_page_attachments(array &$attachments) {
   // Attach JavaScript scripts.
   $attachments['#attached']['library'][] = 'extlink_extra/extlink_extra';
 
-  // If we are using Colorbox we will add js=1 to the query string of the alert
-  // page. This causes a premature exit which saves execution time and does not
-  // render the rest of the page.
+  // If we are using Colorbox we will add colorbox=1 to the query string of the
+  // alert page. This causes a premature exit which saves execution time and does
+  // not render the rest of the page.
   $alert_type = $config->get('extlink_alert_type') ?: 'confirm';
   $query = [];
   if ($alert_type == 'colorbox') {
-    $query = ['js' => 1];
+    $query = ['colorbox' => 1];
   }
 
   // Get URL params if they exist.
@@ -56,6 +56,7 @@ function extlink_extra_page_attachments(array &$attachments) {
     ->setAbsolute();
   $attachments['#attached']['drupalSettings']['extlink_extra'] = [
       'extlink_alert_type' => $alert_type,
+      'extlink_modal_width' => $config->get('extlink_modal_width') ?: 0,
       'extlink_alert_timer' => $config->get('extlink_alert_timer') ?: 0,
       'extlink_alert_url' => $alert_url->toString(),
       'extlink_cache_fix' => $config->get('extlink_cache_fix') ?: 0,
@@ -102,9 +103,16 @@ function extlink_extra_preprocess_extlink_extra_leaving(&$variables) {
 
   // Prepare token replacement values.
   $cache_fix = $config->get('extlink_cache_fix') ?: 0;
-  $external_url = $cache_fix ? 'external-url-placeholder' : $_COOKIE['external_url'];
+  $request = \Drupal::request();
+  $external_url = $request->query->get('external_url');
+  if (!$external_url || !UrlHelper::isValid($external_url, TRUE)) {
+    $external_url = $cache_fix ? 'external-url-placeholder' : $_COOKIE['external_url'];
+  }
   $variables['external_url'] = Url::fromUri($external_url)->setAbsolute()->toString();
-  $back_url = $cache_fix ? 'back-url-placeholder' : $_COOKIE['back_url'];
+  $back_url = $request->query->get('back_url');
+  if (!$back_url || !UrlHelper::isValid($back_url, TRUE)) {
+    $back_url = $cache_fix ? 'back-url-placeholder' : $_COOKIE['back_url'];
+  }
   $variables['back_url'] = Url::fromUri($back_url)->setAbsolute()->toString();
   $extlink_token_data = [
     'extlink' => [
@@ -155,6 +163,21 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
     $form['extlink_alert_type']['#default_value'] = $config->get('extlink_alert_type') ?: 'colorbox';
   }
 
+  // Add a textfield for the modal width.
+  $form['extlink_modal_width'] = [
+    '#type' => 'textfield',
+    '#title' => t('Modal width'),
+    '#description' => t('The width of the modal. The height will be determined by the contents of the modal. Use 0 to let Drupal determine the width too.'),
+    '#default_value' => $config->get('extlink_modal_width') ?: 0,
+    '#states' => [
+      'visible' => [
+        ':input[name=extlink_alert_type]' => [
+          ['value' => 'modal'],
+        ],
+      ],
+    ],
+  ];
+
   // Add a collapsible wrapper.
   $form['extlink_alert_text_fieldset'] = [
     '#type' => 'details',
@@ -178,7 +201,8 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
     '#states' => [
       'visible' => [
         ':input[name=extlink_alert_type]' => [
-          'value' => 'page',
+          ['value' => 'modal'],
+          ['value' => 'page'],
         ],
       ],
     ],
@@ -210,9 +234,10 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
   $form['extlink_alert_type'] = [
     '#type' => 'select',
     '#title' => t('External link click reaction'),
-    '#default_value' => $config->get('extlink_alert_type') ?: 'confirm',
+    '#default_value' => $config->get('extlink_alert_type') ?: 'modal',
     '#description' => t('Choose the way you would like external links to be handled.'),
     '#options' => [
+      'modal' => t('Drupal 8 core Modal Dialog (jQuery UI Dialog)'),
       'confirm' => t('A standard javascript confirm form will popup with the alert text'),
       'page' => t('The user will be taken to an intermediate warning page which will display the alert text'),
     ],
@@ -221,7 +246,6 @@ function extlink_extra_form_extlink_admin_settings_alter(&$form, FormStateInterf
   $moduleHandler = \Drupal::service('module_handler');
   if($moduleHandler->moduleExists('colorbox')) {
     $form['extlink_alert_type']['#options']['colorbox'] = t('A jQuery colorbox will be used for the alert (allows for HTML inside)');
-    $form['extlink_alert_type']['#default_value'] = $config->get('extlink_alert_type') ?: 'colorbox';
   }
 
   // Add a number field for setting the interval for the redirect timer.
@@ -303,6 +327,7 @@ function extlink_extra_admin_settings_submit(&$form, FormStateInterface $form_st
     ->set('extlink_page_title', $values['extlink_page_title'])
     ->set('extlink_alert_text', $values['extlink_alert_text'])
     ->set('extlink_alert_type', $values['extlink_alert_type'])
+    ->set('extlink_modal_width', $values['extlink_modal_width'])
     ->set('extlink_alert_timer', $values['extlink_alert_timer'])
     ->set('extlink_cache_fix', $values['extlink_cache_fix'])
     ->set('extlink_508_fix', $values['extlink_508_fix'])
